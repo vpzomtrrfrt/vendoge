@@ -1,0 +1,13 @@
+{
+  "dependencies": {
+    "body-parser": "^1.17.1",
+    "coinpayments": "^1.0.0",
+    "connect": "^3.6.1",
+    "db-migrate": "^0.10.0-beta.20",
+    "db-migrate-pg": "^0.1.11",
+    "hat": "0.0.3",
+    "pg": "^6.1.5",
+    "q": "^1.5.0",
+    "serve-static": "^1.12.1"
+  }
+}
