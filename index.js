@@ -124,7 +124,7 @@ app.use("/redeem", function(req, res, next) {
 									});
 							}, function(err) {
 								res.writeHead(403, {"Content-type": "text/plain"});
-								res.end(err);
+								res.end(err+"");
 							});
 					});
 			}, function(err) {
@@ -133,7 +133,7 @@ app.use("/redeem", function(req, res, next) {
 			})
 			.catch(function(e) {
 				res.writeHead(403, {"Content-type": "text/plain"});
-				res.end(e);
+				res.end(e+"");
 			});
 	}
 });
