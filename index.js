@@ -34,17 +34,18 @@ app.use(serveStatic("static"));
 app.use(bodyParser.urlencoded({}));
 
 app.use("/buy", function(req, res, next) {
+	var amount = parseInt(req.body.amount || 1);
 	Q.ninvoke(payments, "createTransaction", {
 		currency1: 'DOGE',
 		currency2: 'DOGE',
-		amount: COST,
+		amount: COST*amount,
 		buyer_email: req.body.email
 	})
 		.then(function(trans) {
 			var id = hat(16, 4);
 			return db.connect()
 				.then(function(client) {
-					return client.query("INSERT INTO payments (timestamp, id, coinpayments_id) VALUES (localtimestamp, $1, $2)", [id, trans.txn_id])
+					return client.query("INSERT INTO payments (timestamp, id, coinpayments_id, amount) VALUES (localtimestamp, $1, $2, $3)", [id, trans.txn_id, amount])
 						.then(function(result) {
 							client.release();
 						}, function(err) {
@@ -76,18 +77,18 @@ app.use("/redeem", function(req, res, next) {
 	else {
 		db.connect()
 			.then(function(client) {
-				return client.query("SELECT coinpayments_id FROM payments WHERE id = $1", [spl[1]])
+				return client.query("SELECT coinpayments_id, amount FROM payments WHERE id = $1", [spl[1]])
 					.then(function(result) {
 						if(result.rows.length < 1) {
 							throw "Invalid code";
 						}
+						var amount = result.rows[0].amount;
 						return Q.ninvoke(payments, "getTx", result.rows[0].coinpayments_id)
 							.then(function(trans) {
 								if(trans.status >= 100) {
 									return "coinpayments says yes";
 								}
 								return new Promise(function(resolve, reject) {
-									console.log("getting");
 									https.get("https://chain.so/api/v2/get_address_balance/DOGE/"+trans.payment_address, function(res) {
 										console.log("res achieved");
 										if(res.statusCode !== 200) {
@@ -106,7 +107,7 @@ app.use("/redeem", function(req, res, next) {
 												console.error(j);
 												return;
 											}
-											if(parseFloat(j.data.confirmed_balance) == COST) {
+											if(parseFloat(j.data.confirmed_balance) == COST*amount) {
 												resolve("chain.so says yes");
 												return;
 											}
@@ -120,7 +121,7 @@ app.use("/redeem", function(req, res, next) {
 							.then(function() {
 								return client.query("DELETE FROM payments WHERE id = $1", [spl[1]])
 									.then(function() {
-										res.end("OK");
+										res.end(amount+"");
 									});
 							}, function(err) {
 								res.writeHead(403, {"Content-type": "text/plain"});
