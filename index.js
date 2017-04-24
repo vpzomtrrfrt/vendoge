@@ -35,17 +35,18 @@ app.use(bodyParser.urlencoded({}));
 
 app.use("/buy", function(req, res, next) {
 	var amount = parseInt(req.body.amount || 1);
+	var amount2 = parseInt(req.body.amount2 || 0);
 	Q.ninvoke(payments, "createTransaction", {
 		currency1: 'DOGE',
 		currency2: 'DOGE',
-		amount: COST*amount,
+		amount: COST*(amount+amount2),
 		buyer_email: req.body.email
 	})
 		.then(function(trans) {
 			var id = hat(16, 4);
 			return db.connect()
 				.then(function(client) {
-					return client.query("INSERT INTO payments (timestamp, id, coinpayments_id, amount) VALUES (localtimestamp, $1, $2, $3)", [id, trans.txn_id, amount])
+					return client.query("INSERT INTO payments (timestamp, id, coinpayments_id, amount, amount2) VALUES (localtimestamp, $1, $2, $3, $4)", [id, trans.txn_id, amount, amount2])
 						.then(function(result) {
 							client.release();
 						}, function(err) {
@@ -77,12 +78,14 @@ app.use("/redeem", function(req, res, next) {
 	else {
 		db.connect()
 			.then(function(client) {
-				return client.query("SELECT coinpayments_id, amount FROM payments WHERE id = $1", [spl[1]])
+				return client.query("SELECT coinpayments_id, amount, amount2 FROM payments WHERE id = $1", [spl[1]])
 					.then(function(result) {
 						if(result.rows.length < 1) {
 							throw "Invalid code";
 						}
 						var amount = result.rows[0].amount;
+						var amount2 = result.rows[0].amount2;
+						var cost = COST*(amount+amount2);
 						return Q.ninvoke(payments, "getTx", result.rows[0].coinpayments_id)
 							.then(function(trans) {
 								if(trans.status >= 100) {
@@ -107,7 +110,7 @@ app.use("/redeem", function(req, res, next) {
 												console.error(j);
 												return;
 											}
-											if(parseFloat(j.data.confirmed_balance) == COST*amount) {
+											if(parseFloat(j.data.confirmed_balance) == cost) {
 												resolve("chain.so says yes");
 												return;
 											}
@@ -121,7 +124,7 @@ app.use("/redeem", function(req, res, next) {
 							.then(function() {
 								return client.query("DELETE FROM payments WHERE id = $1", [spl[1]])
 									.then(function() {
-										res.end(amount+"");
+										res.end(amount+","+amount2);
 									});
 							}, function(err) {
 								res.writeHead(403, {"Content-type": "text/plain"});
