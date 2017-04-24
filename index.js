@@ -36,6 +36,12 @@ app.use(bodyParser.urlencoded({}));
 app.use("/buy", function(req, res, next) {
 	var amount = parseInt(req.body.amount || 1);
 	var amount2 = parseInt(req.body.amount2 || 0);
+	if(amount < 0 || amount2 < 0) {
+		throw "Negative values are not allowed.";
+	}
+	if(amount+amount2 < 1) {
+		throw "You can't buy nothing!";
+	}
 	Q.ninvoke(payments, "createTransaction", {
 		currency1: 'DOGE',
 		currency2: 'DOGE',
