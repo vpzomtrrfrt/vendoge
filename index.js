@@ -10,7 +10,7 @@ var payments = new (require('coinpayments'))({
 });
 var https = require('https');
 
-var COST = 200;
+var COST = parseFloat(process.env.ITEM_COST || 200);
 
 function parseDBURL(uri) {
 	var params = require('url').parse(uri);
