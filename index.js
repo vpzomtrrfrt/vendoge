@@ -98,7 +98,7 @@ app.use("/redeem", function(req, res, next) {
 									return "coinpayments says yes";
 								}
 								return new Promise(function(resolve, reject) {
-									https.get("https://chain.so/api/v2/get_address_balance/DOGE/"+trans.payment_address, function(res) {
+									https.get("https://block.io/api/v2/get_address_balance/?api_key="+process.env.BLOCKIO_KEY+"&addresses="+trans.payment_address, function(res) {
 										console.log("res achieved");
 										if(res.statusCode !== 200) {
 											reject(trans.status_text);
@@ -116,8 +116,8 @@ app.use("/redeem", function(req, res, next) {
 												console.error(j);
 												return;
 											}
-											if(parseFloat(j.data.confirmed_balance) == cost) {
-												resolve("chain.so says yes");
+											if(parseFloat(j.data.available_balance) == cost) {
+												resolve("block.io says yes");
 												return;
 											}
 											reject(trans.status_text);
