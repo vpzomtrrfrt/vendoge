@@ -24,6 +24,26 @@ function parseDBURL(uri) {
 	};
 }
 
+function request(url) {
+	return new Promise(function(resolve, reject) {
+		https.get(url, function(res) {
+			console.log("res achieved");
+			if(res.statusCode !== 200) {
+				reject(trans.status_text);
+				return;
+			}
+			var data = "";
+			res.on('data', function(chunk) {
+				data += chunk;
+			});
+			res.on('end', function() {
+				resolve(data);
+			});
+			res.on('error', reject);
+		});
+	});
+}
+
 var options = parseDBURL(process.env.DATABASE_URL);
 console.log(options);
 var db = new pg.Pool(options);
@@ -97,34 +117,35 @@ app.use("/redeem", function(req, res, next) {
 								if(trans.status >= 100) {
 									return "coinpayments says yes";
 								}
-								return new Promise(function(resolve, reject) {
-									https.get("https://block.io/api/v2/get_address_balance/?api_key="+process.env.BLOCKIO_KEY+"&addresses="+trans.payment_address, function(res) {
-										console.log("res achieved");
-										if(res.statusCode !== 200) {
-											reject(trans.status_text);
-											return;
+								return request("https://chain.so/api/v2/get_address_balance/DOGE/"+trans.payment_address)
+								.then(function(data) {
+									var j = JSON.parse(data);
+									if(j.status != "success") {
+										console.error(j);
+										throw j.status;
+									}
+									if(parseFloat(j.data.confirmed_balance) == cost) {
+										return "chain.so says yes";
+									}
+									throw "nope";
+								})
+								.catch(function(err) {
+									console.warn(err);
+									return request("https://block.io/api/v2/get_address_balance/?api_key="+process.env.BLOCKIO_KEY+"&addresses="+trans.payment_address)
+									.then(function(data) {
+										var j = JSON.parse(data);
+										if(j.status != "success") {
+											throw trans.status_text;
 										}
-										var data = "";
-										res.on('data', function(chunk) {
-											data += chunk;
-										});
-										res.on('end', function() {
-											console.log("end");
-											var j = JSON.parse(data);
-											if(j.status != "success") {
-												reject(trans.status_text);
-												console.error(j);
-												return;
-											}
-											if(parseFloat(j.data.available_balance) == cost) {
-												resolve("block.io says yes");
-												return;
-											}
-											reject(trans.status_text);
-											console.error(j);
-										});
-										res.on('error', reject);
+										if(parseFloat(j.data.available_balance) == cost) {
+											return "block.io says yes";
+										}
+										throw "nope";
 									});
+								})
+								.catch(function(err) {
+									console.warn(err);
+									throw trans.status_text;
 								});
 							})
 							.then(function() {
